@@ -30,12 +30,9 @@ require 'pry'
 
 BUSTED = "Busted!"
 BLACKJ = "Blackjack!"
-human_name = "Human"
-bot_name = 'Bot'
 
 vars = {human_name: "Human", human_score: 0, human_total: 0, human_hand: nil,
   bot_name: "Bot", bot_score: 0, bot_total: 0, bot_hand: nil}
-
 
 def make_deck()
   cards = "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
@@ -103,19 +100,18 @@ def message(winner=false)
   end
 end
 
-def display(human_name, human_score, human_hand, bot_name, bot_score,
-            bot_hand, score, announce=false)
+def display(vars={}, announce=false)
   if announce
-    winner = get_winner(human_score, bot_score, human_name, bot_name)
-    update_score(winner, score, bot_name, human_name)
+    winner = get_winner(vars)
+    update_score(winner, vars)
   end
   fmt = "%-8s %-11s %-20s %5s\n"
   hline = "-" * 47 + "\n"
   system 'clear'
   printf(fmt, "Name", "Score", "Cards", "Total")
   printf("%-33s", hline)
-  printf(fmt, human_name, human_score, human_hand.join(" "), score[:human].to_s)
-  printf(fmt, bot_name, bot_score, bot_hand.join(" "), score[:bot].to_s)
+  printf(fmt, vars[:human_name], vars[:human_score], vars[:human_hand].join(" "), vars[:human_total].to_s)
+  printf(fmt, vars[:bot_name], vars[:bot_score], vars[:bot_hand].join(" "), vars[:bot_total].to_s)
   puts ""
   if announce
     if winner
@@ -126,25 +122,24 @@ def display(human_name, human_score, human_hand, bot_name, bot_score,
   end
 end
 
-def get_winner(human_score, bot_score, human_name, bot_name)
+def get_winner(vars={})
   case
-  when human_score == bot_score
+  when vars[:human_score] == vars[:bot_score]
     return nil
-  when bot_score == BUSTED ||
-      human_score == BLACKJ ||
-      (human_score != BUSTED && human_score > bot_score)
-    return human_name
+  when vars[:bot_score] == BUSTED ||
+      vars[:human_score] == BLACKJ ||
+      (vars[:human_score] != BUSTED && vars[:human_score] > vars[:bot_score])
+    return vars[:human_name]
   else
-    return bot_name
+    return vars[:bot_name]
   end
 end
 
-
-def update_score(winner, score, bot_name, human_name)
-  if winner == bot_name
-    score[:bot] += 1
-  elsif winner == human_name
-    score[:human] += 1
+def update_score(winner, vars={})
+  if winner == vars[:bot_name]
+    vars[:bot_total] += 1
+  elsif winner == vars[:human_name]
+    vars[:human_total] += 1
   end
 end
 
@@ -157,23 +152,23 @@ score = {human: 0, bot: 0}
 ## run game
 while true
   # deal the cards
-  human_hand = deal_n(2, deck)
-  bot_hand = deal_n(2, deck)
+  vars[:human_hand] = deal_n(2, deck)
+  vars[:bot_hand] = deal_n(2, deck)
 
   # Scores
-  human_score = evaluate_hand(human_hand, deck).max
-  bot_score = evaluate_hand(bot_hand, deck).max
+  vars[:human_score] = evaluate_hand(vars[:human_hand], deck).max
+  vars[:bot_score] = evaluate_hand(vars[:bot_hand], deck).max
 
   # test blackjack for player
-  human_score = BLACKJ if blackjack?(human_hand)
+  vars[:human_score] = BLACKJ if blackjack?(vars[:human_hand])
 
   # update display
-  display(human_name, human_score, human_hand, bot_name, bot_score, bot_hand, score)
+  display(vars)
 
 
 
   # query player
-  while human_score != BLACKJ
+  while vars[:human_score] != BLACKJ
     puts "Hit or Stay? (h|s)"
     choice = gets.chomp.downcase
     while choice != 'h' && choice != 's'
@@ -183,43 +178,44 @@ while true
     if choice == 's'
       break
     elsif choice == 'h'
-      human_hand << deal_n(1, deck).first
-      human_score = evaluate_hand(human_hand, deck).max
-      if human_score
-        display(human_name, human_score, human_hand, bot_name, bot_score, bot_hand, score)
+      vars[:human_hand] << deal_n(1, deck).first
+      vars[:human_score] = evaluate_hand(vars[:human_hand], deck).max
+      if vars[:human_score]
+        display(vars)
       else
-        human_score = BUSTED
+        vars[:human_score] = BUSTED
         break
       end
     end
   end
 
   # update display
-  display(human_name, human_score, human_hand, bot_name, bot_score, bot_hand, score)
+  display(vars)
 
   # dealer's turn
-  bot_score = BLACKJ if blackjack?(bot_hand)
+  vars[:bot_score] = BLACKJ if blackjack?(vars[:bot_hand])
 
-  while bot_score != BLACKJ &&
-      bot_score != BUSTED &&
-      evaluate_hand(bot_hand, deck).max < 17 &&
-      human_score != BUSTED
-    bot_hand << deal_n(1, deck).first
+  while vars[:bot_score] != BLACKJ &&
+      vars[:bot_score] != BUSTED &&
+      evaluate_hand(vars[:bot_hand], deck).max < 17 &&
+      vars[:human_score] != BUSTED
+    vars[:bot_hand] << deal_n(1, deck).first
     # update dealer score
-    if bot_score = evaluate_hand(bot_hand, deck).max
-      display(human_name, human_score, human_hand, bot_name, bot_score, bot_hand, score)
+    if vars[:bot_score] = evaluate_hand(vars[:bot_hand], deck).max
+      display(vars)
     else
-      bot_score = BUSTED
+      vars[:bot_score] = BUSTED
     end
   end
 
   # announce winner or draw
-  display(human_name, human_score, human_hand, bot_name,
-          bot_score, bot_hand, score, announce=true)
+  display(vars, announce=true)
 
   puts ""
   puts "Again? (y/n)"
-  if gets.chomp != 'y'
+  if gets.chomp == 'y'
+    deck = make_deck()
+  else
     break
   end
 end
