@@ -31,6 +31,9 @@ require 'pry'
 BUSTED = "Busted!"
 BLACKJ = "Blackjack!"
 
+## Some of the functions below require many arguments, and it's just
+## painful to look at and to keep track of. Instead, pass around this
+## hash.
 vars = {human_name: "Human", human_score: 0, human_total: 0, human_hand: nil,
   bot_name: "Bot", bot_score: 0, bot_total: 0, bot_hand: nil}
 
@@ -59,14 +62,17 @@ def deal_n(n, cards)
   hand
 end
 
-# Evaluating hands with aces is the hard part of all this. By default,
-# aces are worth eleven in the deck hash. But here we have to treat
-# them specially. An ace in a hand means that hand has two possible
-# values, two aces means up to four values (with duplication), and so
-# on. This solution is possibly not very rubyesque, but the recursion
-# is natural in this situation.
 def recursive_valuation(vals, res=[0])
+  # Evaluating hands with aces is the hard part of all this. By
+  #   default, I've set the value of aces at eleven in the deck hash,
+  #   which makes life easy elswhere. But here we have pay back that
+  #   debt. An ace in a hand means that that hand has two possible
+  #   values, two aces means up to four values (with duplication), and
+  #   so on (up to 16 possible values). The solution that follows may
+  #   not very rubyesque, but the recursion is natural in this
+  #   situation.
   if vals.empty?
+    # the test for nil values here might not be needed anymore
     res.map { |score| score if score <= 21}.select{|s| not s.nil?}.uniq.sort
   elsif vals.first < 11
     recursive_valuation(vals[1..-1], res.map { |v| v + vals.first })
@@ -101,6 +107,8 @@ def message(winner=false)
 end
 
 def display(vars={}, announce=false)
+  # FIXME: we're not displaying low and high values where there are
+  #   aces.
   if announce
     winner = get_winner(vars)
     update_score(winner, vars)
@@ -143,8 +151,6 @@ def update_score(winner, vars={})
   end
 end
 
-
-
 # Score
 score = {human: 0, bot: 0}
 
@@ -164,8 +170,6 @@ while true
 
   # update display
   display(vars)
-
-
 
   # query player
   while vars[:human_score] != BLACKJ
