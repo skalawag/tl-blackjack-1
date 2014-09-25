@@ -1,225 +1,113 @@
 require 'pry'
 
-# 1. Both the player and dealer are dealt two cards to start the game.
+cards = "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
 
-# 2. Card Values
+def blackjack?(cards)
+  cards.length == 2 &&
+    cards.sort.first[0] == 'A' &&
+    cards.sort.last[0] =~ /K|Q|J|T/
+end
 
-#    - ranks 2-10 (any suit) are their rank number.
-#    - any face card is worth 10.
-#    - aces are worth 1 or 11.
-#    - 'Blackjack' is a face card + an Ace
-
-# 3. After being dealt the initial 2 cards, the player goes first and
-# can choose to either "hit" or "stay". If the player's cards sum up to
-# be greater than 21, the player has "busted" and lost. If the sum is
-# 21, then the player wins. If the sum is less than 21, then the player
-# can choose to "hit" or "stay" again. If the player "hits", then repeat
-# above, but if the player stays, then the player's total value is
-# saved, and the turn moves to the dealer.
-
-# 4. By rule, the dealer must hit until she has at least 17. If the
-# dealer busts, then the player wins. If the dealer, hits 21, then the
-# dealer wins. If, however, the dealer stays, then we compare the sums
-# of the two hands between the player and dealer; higher value wins.
-
-# Bonus:
-# 1. Save the player's name, and use it throughout the app.
-# 2. Ask the player if he wants to play again, rather than just exiting.
-# 3. Save not just the card value, but also the suit.
-# 4. Use multiple decks to prevent against card counting players.
-
-BUSTED = "Busted!"
-BLACKJ = "Blackjack!"
-
-## Some of the functions below require many arguments, and it's just
-## painful to look at and to keep track of. Instead, pass around this
-## hash.
-vars = {human_name: "Human", human_score: 0, human_total: 0, human_hand: nil,
-  bot_name: "Bot", bot_score: 0, bot_total: 0, bot_hand: nil}
-
-def make_deck()
-  cards = "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
-  deck = {}
-  cards.each do |c|
-    if c.start_with?('A')
-      deck[c] = {val: 11, live: true}
-    elsif c.start_with?('K') || c.start_with?('Q') || c.start_with?('J') || c.start_with?('T')
-      deck[c] = {val: 10, live: true}
+def eval_hand(cards)
+  if blackjack?(cards)
+    return [100]
+  end
+  total = [0]
+  ranks = cards.map {|c| c[0]}
+  ranks.each do |c|
+    if c == 'A'
+      total[0] += 11
+    elsif c.to_i == 0
+      total[0] += 10
     else
-      deck[c] = {val: c[0].to_i, live: true}
+      total[0] += c.to_i
     end
   end
-  deck
-end
-
-deck = make_deck()
-
-def deal_n(n, cards)
-  available_cards = cards.select { |k,v| v[:live] }
-  hand = available_cards.keys.sample(n)
-  cards[hand.first][:live] = false
-  cards[hand.last][:live] = false
-  hand
-end
-
-def recursive_valuation(vals, res=[0])
-  # Evaluating hands with aces is the hard part of all this. By
-  #   default, I've set the value of aces at eleven in the deck hash,
-  #   which makes life easy elswhere. But here we have pay back that
-  #   debt. An ace in a hand means that that hand has two possible
-  #   values, two aces means up to four values (with duplication), and
-  #   so on (up to 16 possible values). The solution that follows may
-  #   not very rubyesque, but the recursion is natural in this
-  #   situation.
-  if vals.empty?
-    # the test for nil values here might not be needed anymore
-    res.map { |score| score if score <= 21}.select{|s| not s.nil?}.uniq.sort
-  elsif vals.first < 11
-    recursive_valuation(vals[1..-1], res.map { |v| v + vals.first })
+  ranks.count('A').times do
+    total = total + total.map { |s| s - 10 }
+  end
+  total = total.select { |n| n < 22 }.reverse.uniq
+  if total.empty?
+    return [-1]
   else
-    # number of hands doubles when we encounter an ace
-    res = res.map { |v| v + 11 } + res.map { |v| v + 1 }
-    recursive_valuation(vals[1..-1], res)
+    return total
   end
 end
 
-def evaluate_hand(hand, deck)
-  recursive_valuation(hand.map { |c| deck[c][:val] })
-end
-
-def blackjack?(hand)
-  if hand.length > 2
-    return false
+def display(human_hand, bot_hand, show_bot=false, harden=false)
+  h_score = eval_hand(human_hand)
+  if h_score == -1
+    h_score = "Bust!"
+  elsif h_score == 100
+    h_score = "Blackjack!"
+  elsif h_score.length == 1
+    h_score = h_score[0]
+  elsif harden
+    h_score = h_score.max
   else
-    sorted = hand.sort
-    if sorted.first[0].start_with?('A') && sorted.last[0] =~ /K|Q|J|T/
-      return true
-    end
+    h_score = h_score.map {|i| i.to_s}.join("/")
   end
-end
-
-def message(winner=false)
-  if winner
-    puts "#{winner} has won!"
+  b_score = eval_hand(bot_hand)
+  if b_score == -1
+    b_score = "Bust!"
+  elsif b_score == 100
+    b_score = "Blackjack!"
   else
-    puts "The game is a tie!"
+    b_score = b_score[0]
   end
-end
 
-def display(vars={}, announce=false)
-  # FIXME: we're not displaying low and high values where there are
-  #   aces.
-  if announce
-    winner = get_winner(vars)
-    update_score(winner, vars)
-  end
-  fmt = "%-8s %-11s %-20s %5s\n"
-  hline = "-" * 47 + "\n"
-  system 'clear'
-  printf(fmt, "Name", "Score", "Cards", "Total")
-  printf("%-33s", hline)
-  printf(fmt, vars[:human_name], vars[:human_score], vars[:human_hand].join(" "), vars[:human_total].to_s)
-  printf(fmt, vars[:bot_name], vars[:bot_score], vars[:bot_hand].join(" "), vars[:bot_total].to_s)
-  puts ""
-  if announce
-    if winner
-      message(winner)
-    else
-      message()
-    end
-  end
-end
-
-def get_winner(vars={})
-  case
-  when vars[:human_score] == vars[:bot_score]
-    return nil
-  when vars[:bot_score] == BUSTED ||
-      vars[:human_score] == BLACKJ ||
-      (vars[:human_score] != BUSTED && vars[:human_score] > vars[:bot_score])
-    return vars[:human_name]
+  fmt = "%-8s %-11s %-20s\n"
+  hline = "-" * 33 + "\n"
+  printf(fmt, "Player", "Score", "Hand")
+  puts hline
+  printf(fmt, "Human", h_score, human_hand.join(" "))
+  if not show_bot
+    printf(fmt, "Bot", "??", "X X")
   else
-    return vars[:bot_name]
+    printf(fmt, "Bot", b_score, bot_hand.join(" "))
   end
 end
 
-def update_score(winner, vars={})
-  if winner == vars[:bot_name]
-    vars[:bot_total] += 1
-  elsif winner == vars[:human_name]
-    vars[:human_total] += 1
+# deal initial cards
+h_hand = cards.shuffle!.pop(2)
+b_hand = cards.shuffle!.pop(2)
+
+# test for backjack
+if blackjack?(h_hand)
+  if blackjack?(b_hand)
+    puts "It's a tie!"
+    display(h_hand, b_hand, show_bot=true)
+  else
+    puts "Human has won!"
+    display(h_hand, b_hand, show_bot=true)
   end
+elsif blackjack?(b_hand)
+  puts "Bot has won!"
+  display(h_hand, b_hand, show_bot=true)
 end
 
-# Score
-score = {human: 0, bot: 0}
+# if we haven't displayed anything yet, we should do so now.
+display(h_hand, b_hand)
 
-###########
-## run game
-while true
-  # deal the cards
-  vars[:human_hand] = deal_n(2, deck)
-  vars[:bot_hand] = deal_n(2, deck)
-
-  # Scores
-  vars[:human_score] = evaluate_hand(vars[:human_hand], deck).max
-  vars[:bot_score] = evaluate_hand(vars[:bot_hand], deck).max
-
-  # test blackjack for player
-  vars[:human_score] = BLACKJ if blackjack?(vars[:human_hand])
-
-  # update display
-  display(vars)
-
-  # query player
-  while vars[:human_score] != BLACKJ
-    puts "Hit or Stay? (h|s)"
+begin
+  puts "Hit or Stand? (h/s)"
+  choice = gets.chomp.downcase
+  while choice != 'h' && choice != 's'
+    puts "Eh? Hit or Stand? (h/s)"
     choice = gets.chomp.downcase
-    while choice != 'h' && choice != 's'
-      puts "Eh? Hit or Stay? (h|s)"
-      choice = gets.chomp
-    end
-    if choice == 's'
-      break
-    elsif choice == 'h'
-      vars[:human_hand] << deal_n(1, deck).first
-      vars[:human_score] = evaluate_hand(vars[:human_hand], deck).max
-      if vars[:human_score]
-        display(vars)
-      else
-        vars[:human_score] = BUSTED
-        break
-      end
-    end
   end
-
-  # update display
-  display(vars)
-
-  # dealer's turn
-  vars[:bot_score] = BLACKJ if blackjack?(vars[:bot_hand])
-
-  while vars[:bot_score] != BLACKJ &&
-      vars[:bot_score] != BUSTED &&
-      evaluate_hand(vars[:bot_hand], deck).max < 17 &&
-      vars[:human_score] != BUSTED
-    vars[:bot_hand] << deal_n(1, deck).first
-    # update dealer score
-    if vars[:bot_score] = evaluate_hand(vars[:bot_hand], deck).max
-      display(vars)
-    else
-      vars[:bot_score] = BUSTED
-    end
+  if choice == 'h'
+    h_hand << cards.shuffle!.pop
+    display(h_hand, b_hand)
   end
+end until choice == 's' || eval_hand(h_hand) == -1
 
-  # announce winner or draw
-  display(vars, announce=true)
-
-  puts ""
-  puts "Again? (y/n)"
-  if gets.chomp == 'y'
-    deck = make_deck()
-  else
-    break
-  end
+val = eval_hand(b_hand)[0]
+if (val < 17 && val > 0) && eval_hand(h_hand) > 0
+  begin
+    b_hand << cards.shuffle!.pop
+  end until eval_hand(b_hand) == -1 || eval_hand(b_hand)[0] >= 17
+  display(h_hand, b_hand, show_bot=true, harden=true)
+else
+  display(h_hand, b_hand, show_bot=true, harden=true)
 end
