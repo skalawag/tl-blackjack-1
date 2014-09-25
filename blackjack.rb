@@ -1,5 +1,6 @@
 ## A much simplified version 2 of this, begun from scratch after
-## reading the solution.
+## reading the solution. (The first version is in a branch called
+## version-1.
 
 def make_deck()
   "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
