@@ -34,28 +34,23 @@ def eval_hand(cards)
   end
 end
 
-def display(human_hand, bot_hand, show_bot=false, harden=false)
-  h_score = eval_hand(human_hand)
-  if h_score == -1
-    h_score = "Bust!"
-  elsif h_score == 100
-    h_score = "Blackjack!"
-  elsif h_score.length == 1
-    h_score = h_score[0]
+def prep_score(eval_result)
+  if eval_result == [-1]
+    return "Bust!"
+  elsif eval_result == [100]
+    return "Blackjack!"
+  elsif eval_result.length == 1
+    return eval_result[0]
   elsif harden
-    h_score = h_score.max
+    return eval_result.max
   else
-    h_score = h_score.map {|i| i.to_s}.join("/")
+    return eval_result.map {|i| i.to_s}.join("/")
   end
-  b_score = eval_hand(bot_hand)
-  if b_score == -1
-    b_score = "Bust!"
-  elsif b_score == 100
-    b_score = "Blackjack!"
-  else
-    b_score = b_score[0]
-  end
+end
 
+def display(human_hand, bot_hand, show_bot=false, harden=false)
+  h_score = prep_score(eval_hand(human_hand))
+  b_score = prep_score(eval_hand(bot_hand))
   fmt = "%-8s %-11s %-20s\n"
   hline = "-" * 33 + "\n"
   printf(fmt, "Player", "Score", "Hand")
@@ -100,10 +95,10 @@ begin
     h_hand << cards.shuffle!.pop
     display(h_hand, b_hand)
   end
-end until choice == 's' || eval_hand(h_hand) == -1
+end until choice == 's' || eval_hand(h_hand) == [-1]
 
 val = eval_hand(b_hand)[0]
-if (val < 17 && val > 0) && eval_hand(h_hand) > 0
+if (val < 17 && val > 0) && eval_hand(h_hand)[0] > 0
   begin
     b_hand << cards.shuffle!.pop
   end until eval_hand(b_hand) == -1 || eval_hand(b_hand)[0] >= 17
