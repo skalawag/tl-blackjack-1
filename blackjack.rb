@@ -1,4 +1,5 @@
-## A much simplified version 2 of this, after reading the solution.
+## A much simplified version 2 of this, begun from scratch after
+## reading the solution.
 
 def make_deck()
   "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
@@ -53,7 +54,7 @@ def prep_score(eval_result, harden=false)
   end
 end
 
-def display(human_hand, bot_hand, show_bot=false, harden=false)
+def display(human_hand, bot_hand, h_name="Human", show_bot=false, harden=false)
   system 'clear'
   h_score = prep_score(eval_hand(human_hand), harden)
   b_score = prep_score(eval_hand(bot_hand), harden)
@@ -61,7 +62,7 @@ def display(human_hand, bot_hand, show_bot=false, harden=false)
   hline = "-" * 33 + "\n"
   printf(fmt, "Player", "Score", "Hand")
   puts hline
-  printf(fmt, "Human", h_score, human_hand.join(" "))
+  printf(fmt, h_name, h_score, human_hand.join(" "))
   if not show_bot
     printf(fmt, "Bot", "??", "X X")
   else
@@ -69,6 +70,9 @@ def display(human_hand, bot_hand, show_bot=false, harden=false)
   end
   puts ""
 end
+
+puts "Enter your name:"
+h_name = gets.chomp
 
 while true
   cards = make_deck()
@@ -81,18 +85,18 @@ while true
   if blackjack?(h_hand)
     if blackjack?(b_hand)
       puts "It's a tie!"
-      display(h_hand, b_hand, show_bot=true)
+      display(h_hand, b_hand, h_name=h_name, show_bot=true)
     else
       puts "Human has won!"
-      display(h_hand, b_hand, show_bot=true)
+      display(h_hand, b_hand, h_name=h_name, show_bot=true)
     end
   elsif blackjack?(b_hand)
     puts "Bot has won!"
-    display(h_hand, b_hand, show_bot=true)
+    display(h_hand, b_hand, h_name=h_name, show_bot=true)
   end
 
   # if we haven't displayed anything yet, we should do so now.
-  display(h_hand, b_hand)
+  display(h_hand, b_hand, h_name=h_name)
 
   if not blackjack?(h_hand)
     begin
@@ -104,7 +108,7 @@ while true
       end
       if choice == 'h'
         h_hand << cards.shuffle!.pop
-        display(h_hand, b_hand)
+        display(h_hand, b_hand, h_name=h_name)
       end
     end until choice == 's' || eval_hand(h_hand) == [-1]
   end
@@ -114,9 +118,9 @@ while true
     begin
       b_hand << cards.shuffle!.pop
     end until eval_hand(b_hand) == [-1] || eval_hand(b_hand)[0] >= 17
-    display(h_hand, b_hand, show_bot=true, harden=true)
+    display(h_hand, b_hand, h_name=h_name, show_bot=true, harden=true)
   else
-    display(h_hand, b_hand, show_bot=true, harden=true)
+    display(h_hand, b_hand, h_name=h_name, show_bot=true, harden=true)
   end
 
   puts "Play again?"
