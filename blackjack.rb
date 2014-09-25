@@ -1,6 +1,8 @@
-require 'pry'
+## A much simplified version 2 of this, after reading the solution.
 
-cards = "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
+def make_deck()
+  "AJQKT98765432".chars.product("csdh".chars).map { |c| c.join }
+end
 
 def blackjack?(cards)
   cards.length == 2 &&
@@ -12,6 +14,7 @@ def eval_hand(cards)
   if blackjack?(cards)
     return [100]
   end
+  # otherwise, total card values
   total = [0]
   ranks = cards.map {|c| c[0]}
   ranks.each do |c|
@@ -23,10 +26,12 @@ def eval_hand(cards)
       total[0] += c.to_i
     end
   end
+  # take account of aces
   ranks.count('A').times do
     total = total + total.map { |s| s - 10 }
   end
   total = total.select { |n| n < 22 }.reverse.uniq
+  # check if player went bust
   if total.empty?
     return [-1]
   else
@@ -34,7 +39,7 @@ def eval_hand(cards)
   end
 end
 
-def prep_score(eval_result)
+def prep_score(eval_result, harden=false)
   if eval_result == [-1]
     return "Bust!"
   elsif eval_result == [100]
@@ -49,8 +54,9 @@ def prep_score(eval_result)
 end
 
 def display(human_hand, bot_hand, show_bot=false, harden=false)
-  h_score = prep_score(eval_hand(human_hand))
-  b_score = prep_score(eval_hand(bot_hand))
+  system 'clear'
+  h_score = prep_score(eval_hand(human_hand), harden)
+  b_score = prep_score(eval_hand(bot_hand), harden)
   fmt = "%-8s %-11s %-20s\n"
   hline = "-" * 33 + "\n"
   printf(fmt, "Player", "Score", "Hand")
@@ -61,48 +67,60 @@ def display(human_hand, bot_hand, show_bot=false, harden=false)
   else
     printf(fmt, "Bot", b_score, bot_hand.join(" "))
   end
+  puts ""
 end
 
-# deal initial cards
-h_hand = cards.shuffle!.pop(2)
-b_hand = cards.shuffle!.pop(2)
+while true
+  cards = make_deck()
 
-# test for backjack
-if blackjack?(h_hand)
-  if blackjack?(b_hand)
-    puts "It's a tie!"
+  # deal initial cards
+  h_hand = cards.shuffle!.pop(2)
+  b_hand = cards.shuffle!.pop(2)
+
+  # test for backjack
+  if blackjack?(h_hand)
+    if blackjack?(b_hand)
+      puts "It's a tie!"
+      display(h_hand, b_hand, show_bot=true)
+    else
+      puts "Human has won!"
+      display(h_hand, b_hand, show_bot=true)
+    end
+  elsif blackjack?(b_hand)
+    puts "Bot has won!"
     display(h_hand, b_hand, show_bot=true)
+  end
+
+  # if we haven't displayed anything yet, we should do so now.
+  display(h_hand, b_hand)
+
+  if not blackjack?(h_hand)
+    begin
+      puts "Hit or Stand? (h/s)"
+      choice = gets.chomp.downcase
+      while choice != 'h' && choice != 's'
+        puts "Eh? Hit or Stand? (h/s)"
+        choice = gets.chomp.downcase
+      end
+      if choice == 'h'
+        h_hand << cards.shuffle!.pop
+        display(h_hand, b_hand)
+      end
+    end until choice == 's' || eval_hand(h_hand) == [-1]
+  end
+
+  val = eval_hand(b_hand)[0]
+  if (val < 17 && val > 0) && eval_hand(h_hand)[0] > 0
+    begin
+      b_hand << cards.shuffle!.pop
+    end until eval_hand(b_hand) == [-1] || eval_hand(b_hand)[0] >= 17
+    display(h_hand, b_hand, show_bot=true, harden=true)
   else
-    puts "Human has won!"
-    display(h_hand, b_hand, show_bot=true)
+    display(h_hand, b_hand, show_bot=true, harden=true)
   end
-elsif blackjack?(b_hand)
-  puts "Bot has won!"
-  display(h_hand, b_hand, show_bot=true)
-end
 
-# if we haven't displayed anything yet, we should do so now.
-display(h_hand, b_hand)
-
-begin
-  puts "Hit or Stand? (h/s)"
-  choice = gets.chomp.downcase
-  while choice != 'h' && choice != 's'
-    puts "Eh? Hit or Stand? (h/s)"
-    choice = gets.chomp.downcase
+  puts "Play again?"
+  if gets.chomp != 'y'
+    break
   end
-  if choice == 'h'
-    h_hand << cards.shuffle!.pop
-    display(h_hand, b_hand)
-  end
-end until choice == 's' || eval_hand(h_hand) == [-1]
-
-val = eval_hand(b_hand)[0]
-if (val < 17 && val > 0) && eval_hand(h_hand)[0] > 0
-  begin
-    b_hand << cards.shuffle!.pop
-  end until eval_hand(b_hand) == -1 || eval_hand(b_hand)[0] >= 17
-  display(h_hand, b_hand, show_bot=true, harden=true)
-else
-  display(h_hand, b_hand, show_bot=true, harden=true)
 end
